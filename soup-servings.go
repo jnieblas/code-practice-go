@@ -3,9 +3,8 @@ package main
 import "fmt"
 
 type Operation struct {
-	code int
-	a    int
-	b    int
+	a int
+	b int
 }
 
 var ops = [4]Operation{
@@ -29,7 +28,7 @@ func soupServings(n int) float64 {
 }
 
 func iterate(n int, completedCombos map[SoupCombo]float64, a int, b int) float64 {
-	count := 0.0
+	score := 0.0
 	for _, op := range ops {
 		currCombo := SoupCombo{
 			a: a + op.a,
@@ -38,33 +37,37 @@ func iterate(n int, completedCombos map[SoupCombo]float64, a int, b int) float64
 
 		existingValue := completedCombos[currCombo]
 		if existingValue != 0.0 {
-			count += existingValue
+			score += existingValue
 		} else {
 			if isFull(n, currCombo.a) && isFull(n, currCombo.b) {
 				// The reason why we don't need to multiply this num by 0.25 is because it's a completed combo found within the step, but it isn't representetive of a completed step's value.
 				// Remember, we only multiply by 0.25 at the end of the step, not necessarily if we find a solution within the step.
-				// However, we multiply by 0.25 below because we completed an entire step & have found that, for this step, this is our holistic solution.
-				count += 0.5
+				// However, we multiply by 0.25 below because we completed an entire step & have found that, for this step, that is our holistic solution.
+				score += 0.5
 				completedCombos[currCombo] = 0.5
 			} else if isFull(n, currCombo.a) {
-				count += 1
+				score += 1
 				completedCombos[currCombo] = 1
 			} else if !isFull(n, currCombo.b) {
-				count += iterate(n, completedCombos, currCombo.a, currCombo.b)
+				score += iterate(n, completedCombos, currCombo.a, currCombo.b)
 			}
 		}
 	}
 
-	if count > 0.0 {
-		count *= 0.25
+	// If the score for the step is greater than 0, cache it.
+	// This is where the magic happens. Since we iteratively delve to find the complete solution per step,
+	// we can take the step we're currently at (which may be very basic) and capture what the rest of
+	// its recursive tree will produce. This means that if we ever hit similar A/B combos again, we can just reference our cache.
+	if score > 0.0 {
+		score *= 0.25 // Multiply by 0.25 since this score represents the score for a single step. Since each op has 1/4 chance of being chosen per step, we multiply our score by 0.25
 		currCombo := SoupCombo{
 			a: a,
 			b: b,
 		}
-		completedCombos[currCombo] = count
+		completedCombos[currCombo] = score
 	}
 
-	return count
+	return score
 }
 
 func isFull(n int, amount int) bool {
